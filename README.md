@@ -1,3 +1,3 @@
 # ROS Orchestrator
 
-A orchestrator for launch files
+Orchestrator manager to launch scripts via service

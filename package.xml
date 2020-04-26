@@ -28,7 +28,7 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 <package format="2">
   <name>ros_orchestrator</name>
   <version>0.1.0</version>
-  <description>Orchestrator manager to launch scripts via topics</description>
+  <description>Orchestrator manager to launch scripts via service</description>
 
   <maintainer email="raffaello@rnext.it">Raffaello Bonghi</maintainer>
   <license>MIT</license>
@@ -39,6 +39,9 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
   <buildtool_depend>catkin</buildtool_depend>
 
+  <build_depend>genmsg</build_depend>
+
+  <depend>std_msgs</depend>
   <depend>rospy</depend>
   <depend>roslaunch</depend>
 

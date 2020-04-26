@@ -31,14 +31,14 @@
 
 import rospy
 # Local package
-from orchestrator import Orchestrator
+from orchestrator import OrchestratorManager
 
 
 def orchestrator():
     # Initialization ros node
     rospy.init_node('orchestrator_node')
     # Initialize orchestrator
-    orchestrator = Orchestrator()
+    orchestrator = OrchestratorManager()
     # Status
     rospy.loginfo("ROS orchestrator started")
     # spin

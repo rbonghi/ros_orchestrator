@@ -30,30 +30,74 @@
 
 import rospy
 import roslaunch
-from std_msgs.msg import String
+from multiprocessing import Process
+from ros_orchestrator.srv import Orchestrator, OrchestratorResponse
 
 
-class Orchestrator:
+class OrchestratorManager:
 
     def __init__(self):
         launchers = rospy.get_param("~orchestrator", [])
         # Generate UUID
-        uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
-        roslaunch.configure_logging(uuid)
+        self.uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
+        roslaunch.configure_logging(self.uuid)
         # Initialize all launchers
         self.launchers = {}
         for name, launch in launchers.items():
-            self.launchers[name] = roslaunch.parent.ROSLaunchParent(uuid, [launch])
+            # Initialize lauchers
+            self.launchers[name] = {'file': launch}
             rospy.loginfo("Load {name} {launch}".format(name=name, launch=launch))
-        # Initialize orchestrator subscriber
-        rospy.Subscriber("orchestrator", String, self.callback)
-        #launch.start()
-        # Shoutdown
-        #launch.shutdown()
+        # Initialize orchestrator service server
+        rospy.Service('orchestrator', Orchestrator, self.orchestrator_service)
 
-    def callback(self, data):
-        rospy.loginfo(rospy.get_caller_id() + "I heard %s", data.data)
+    def launch_process(self, uuid, launch_file):
+        rospy.loginfo("ROS launch={launch}".format(launch=launch_file))
+        # Initialize launcher
+        launch = roslaunch.parent.ROSLaunchParent(uuid, [launch_file])
+        # Run launch file
+        launch.start()
+        # spin launch
+        #launch.spin()
+        rospy.sleep(5)
+        # 3 seconds later
+        launch.shutdown()
+
+    def _start_process(self, name):
+        launcher = self.launchers[name]
+        # Initialze process
+        launcher['process'] = Process(target=self.launch_process, args=(self.uuid, launcher['file'],))
+        # Start process
+        launcher['process'].start()
+        #launcher['process'].join()
+        return True
+
+    def _stop_process(self, name):
+        launcher = self.launchers[name]
+        # Terminate process if exist
+        if 'process' in launcher:
+            launcher['process'].terminate()
+        return True
+
+    def orchestrator_service(self, req):
+        # Check if launcher is in list
+        launch_status = False
+        if req.launch in self.launchers:
+            rospy.loginfo("[{status}] launch={launch}".format(launch=req.launch, status=req.status))
+            if req.status:
+                # Start the launcher
+                launch_status = self._start_process(req.launch)
+            else:
+                # Stop launch file
+                launch_status = self._stop_process(req.launch)
+        else:
+            rospy.logerr("{launch} does not exist!".format(launch=req.launch))
+        # return status launcher
+        return OrchestratorResponse(launch_status)
 
     def shutdown(self):
-        pass
+        # Close all launcher active
+        for name in self.launchers:
+            rospy.loginfo("Shutting down {name}".format(name=name))
+            # Stop process active
+            self._stop_process(name)
 # EOF

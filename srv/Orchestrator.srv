@@ -1,0 +1,9 @@
+# Standard Orchestrator service
+
+# Name of launcher
+string launch
+# Start/stop launch
+bool status
+---
+# Status service
+bool return
