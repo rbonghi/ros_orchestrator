@@ -29,15 +29,31 @@
 # EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import rospy
+import roslaunch
 
 
-def main():
+def orchestrator():
     # Initialization ros node
     rospy.init_node('orchestrator_node')
-    # Status
     rospy.loginfo("ROS orchestrator")
+
+    launch_file = rospy.get_param("~launch", "")
+    
+    rospy.loginfo("{}".format(launch_file))
+    uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
+    roslaunch.configure_logging(uuid)
+    launch = roslaunch.parent.ROSLaunchParent(uuid, [launch_file])
+    launch.start()
+    # Status
+    rospy.loginfo("started")
+    # spin
+    rospy.spin()
+    # Shoutdown node
+    rospy.loginfo("Orchestrator shutdown")
+    # Shoutdown
+    launch.shutdown()
 
 
 if __name__ == '__main__':
-    main()
+    orchestrator()
 # EOF
