@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 # Copyright (C) 2020, Raffaello Bonghi <raffaello@rnext.it>
 # All rights reserved
@@ -28,27 +27,6 @@
 # OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
 # EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+from .manager import Orchestrator
 
-import rospy
-# Local package
-from orchestrator import Orchestrator
-
-
-def orchestrator():
-    # Initialization ros node
-    rospy.init_node('orchestrator_node')
-    # Initialize orchestrator
-    orchestrator = Orchestrator()
-    # Status
-    rospy.loginfo("ROS orchestrator started")
-    # spin
-    rospy.spin()
-    # Shoutdown node
-    rospy.loginfo("Orchestrator shutdown")
-    # switch off all other nodes
-    orchestrator.shutdown()
-
-
-if __name__ == '__main__':
-    orchestrator()
 # EOF

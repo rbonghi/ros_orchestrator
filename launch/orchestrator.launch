@@ -28,6 +28,10 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 <launch>
     <!-- Run Orchestrator and load a launch file -->
     <node pkg="ros_orchestrator" type="orchestrator.py" name="ros_orchestrator" required="true" output="screen">
-      <param name="launch" value="$(find rospy_tutorial)/001_talker_listener/talker_listener.launch" />
+        <rosparam subst_value="true">
+            orchestrator:
+                001_talker_listener: $(find rospy_tutorials)/001_talker_listener/talker_listener.launch
+                002_headers: $(find rospy_tutorials)/002_headers/headers.launch
+        </rosparam>
     </node>
 </launch>

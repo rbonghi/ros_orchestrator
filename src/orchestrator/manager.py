@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 # Copyright (C) 2020, Raffaello Bonghi <raffaello@rnext.it>
 # All rights reserved
@@ -30,25 +29,31 @@
 
 
 import rospy
-# Local package
-from orchestrator import Orchestrator
+import roslaunch
+from std_msgs.msg import String
 
 
-def orchestrator():
-    # Initialization ros node
-    rospy.init_node('orchestrator_node')
-    # Initialize orchestrator
-    orchestrator = Orchestrator()
-    # Status
-    rospy.loginfo("ROS orchestrator started")
-    # spin
-    rospy.spin()
-    # Shoutdown node
-    rospy.loginfo("Orchestrator shutdown")
-    # switch off all other nodes
-    orchestrator.shutdown()
+class Orchestrator:
 
+    def __init__(self):
+        launchers = rospy.get_param("~orchestrator", [])
+        # Generate UUID
+        uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
+        roslaunch.configure_logging(uuid)
+        # Initialize all launchers
+        self.launchers = {}
+        for name, launch in launchers.items():
+            self.launchers[name] = roslaunch.parent.ROSLaunchParent(uuid, [launch])
+            rospy.loginfo("Load {name} {launch}".format(name=name, launch=launch))
+        # Initialize orchestrator subscriber
+        rospy.Subscriber("orchestrator", String, self.callback)
+        #launch.start()
+        # Shoutdown
+        #launch.shutdown()
 
-if __name__ == '__main__':
-    orchestrator()
+    def callback(self, data):
+        rospy.loginfo(rospy.get_caller_id() + "I heard %s", data.data)
+
+    def shutdown(self):
+        pass
 # EOF
