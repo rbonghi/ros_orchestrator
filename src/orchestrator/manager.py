@@ -37,16 +37,27 @@ from ros_orchestrator.srv import Orchestrator, OrchestratorResponse
 class OrchestratorManager:
 
     def __init__(self):
-        launchers = rospy.get_param("~orchestrator", [])
         # Generate UUID
         self.uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
         roslaunch.configure_logging(self.uuid)
         # Initialize all launchers
         self.launchers = {}
-        for name, launch in launchers.items():
+        for name, launch_data in rospy.get_param("~orchestrator", []).items():
             # Initialize lauchers
-            self.launchers[name] = {'file': launch}
-            rospy.loginfo("Load {name} {launch}".format(name=name, launch=launch))
+            if isinstance(launch_data, str):
+                launcher = {'file': launch_data}
+            elif isinstance(launch_data, list):
+                launch = launch_data.get('launch', "")
+                args = launch_data.get('args', [])
+                for arg in args:
+                    rospy.loginfo(arg)
+                # Initialize dictionary launcher
+                launcher = {'file': launch, 'args': []}
+            else:
+                rospy.loginfo(arg)
+            # Initialzie launcher
+            self.launchers[name] = launcher
+            rospy.loginfo("Load {name} {launch}".format(name=name, launch=launcher['file']))
         # Initialize orchestrator service server
         rospy.Service('orchestrator', Orchestrator, self.orchestrator_service)
 
@@ -57,13 +68,18 @@ class OrchestratorManager:
         # Run launch file
         launch.start()
         # spin launch
-        #launch.spin()
-        rospy.sleep(5)
+        launch.spin()
+        # Launcher close
+        rospy.loginfo("Close {launch}".format(launch=launch_file))
         # 3 seconds later
         launch.shutdown()
 
     def _start_process(self, name):
         launcher = self.launchers[name]
+        # Check if process is already alive
+        if 'process' in launcher:
+            if launcher['process'].is_alive():
+                return False
         # Initialze process
         launcher['process'] = Process(target=self.launch_process, args=(self.uuid, launcher['file'],))
         # Start process
