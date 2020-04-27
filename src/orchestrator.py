@@ -42,7 +42,12 @@ def orchestrator():
     # Status
     rospy.loginfo("ROS orchestrator started")
     # spin
-    rospy.spin()
+    # rospy.spin()
+    rate = rospy.Rate(0.5) # 10hz
+    while not rospy.is_shutdown():
+        rospy.loginfo("Time {time:.0f}".format(time=rospy.get_time()))
+        orchestrator.status()
+        rate.sleep()
     # Shoutdown node
     rospy.loginfo("Orchestrator shutdown")
     # switch off all other nodes

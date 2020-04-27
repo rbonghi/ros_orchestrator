@@ -27,7 +27,8 @@
 # OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
 # EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-
+import sys
+import os
 import rospy
 import roslaunch
 from multiprocessing import Process
@@ -37,12 +38,13 @@ from ros_orchestrator.srv import Orchestrator, OrchestratorResponse
 class OrchestratorManager:
 
     def __init__(self):
+        self.quite = rospy.get_param("~quite", False)
         # Generate UUID
         self.uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
         roslaunch.configure_logging(self.uuid)
         # Initialize all launchers
         self.launchers = {}
-        for name, launch_data in rospy.get_param("~orchestrator", []).items():
+        for name, launch_data in sorted(rospy.get_param("~orchestrator", []).items()):
             # Initialize lauchers
             if isinstance(launch_data, str):
                 launcher = {'file': launch_data}
@@ -61,17 +63,26 @@ class OrchestratorManager:
         # Initialize orchestrator service server
         rospy.Service('orchestrator', Orchestrator, self.orchestrator_service)
 
-    def launch_process(self, uuid, launch_file):
-        rospy.loginfo("ROS launch={launch}".format(launch=launch_file))
+    def launch_process(self, name):
+        # Configure output
+        show_summary = False if self.quite else True
+        force_log =  self.quite
+        # Load launcher
+        launcher = self.launchers[name]
+        launch_file = launcher['file']
+        # print('parent process:', os.getppid())
+        # print('process id:', os.getpid())
+        rospy.loginfo("[{pid}] ROS launch={launch}".format(pid=os.getpid(), launch=launch_file))
         # Initialize launcher
-        launch = roslaunch.parent.ROSLaunchParent(uuid, [launch_file])
+        launch = roslaunch.parent.ROSLaunchParent(self.uuid, [launch_file], force_log=force_log, show_summary=show_summary)
+        launcher['ros_launch'] = launch
         # Run launch file
         launch.start()
         # spin launch
         launch.spin()
         # Launcher close
         rospy.loginfo("Close {launch}".format(launch=launch_file))
-        # 3 seconds later
+        # shutdown the node
         launch.shutdown()
 
     def _start_process(self, name):
@@ -80,8 +91,8 @@ class OrchestratorManager:
         if 'process' in launcher:
             if launcher['process'].is_alive():
                 return False
-        # Initialze process
-        launcher['process'] = Process(target=self.launch_process, args=(self.uuid, launcher['file'],))
+        # Initialize process
+        launcher['process'] = Process(target=self.launch_process, args=(name,))
         # Start process
         launcher['process'].start()
         #launcher['process'].join()
@@ -91,8 +102,14 @@ class OrchestratorManager:
         launcher = self.launchers[name]
         # Terminate process if exist
         if 'process' in launcher:
+            # shutdown process
+            rospy.loginfo("Shutting down {name}".format(name=name))
             launcher['process'].terminate()
         return True
+
+    def _status_process(self, name):
+        if 'process' in self.launchers[name]:
+            rospy.loginfo("Status {name}".format(name=name))
 
     def orchestrator_service(self, req):
         # Check if launcher is in list
@@ -113,7 +130,13 @@ class OrchestratorManager:
     def shutdown(self):
         # Close all launcher active
         for name in self.launchers:
-            rospy.loginfo("Shutting down {name}".format(name=name))
             # Stop process active
             self._stop_process(name)
+    
+    def status(self):
+        """ Read the status of all launchers
+        """
+        for name in self.launchers:
+            # Stop process active
+            self._status_process(name)
 # EOF
