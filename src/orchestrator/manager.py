@@ -31,7 +31,9 @@ import sys
 import os
 import rospy
 import roslaunch
-from multiprocessing import Process
+from multiprocessing import Process, Manager, Value, Array
+import ctypes
+import multiprocessing.sharedctypes as mpsc
 from ros_orchestrator.srv import Orchestrator, OrchestratorResponse
 
 
@@ -63,7 +65,7 @@ class OrchestratorManager:
         # Initialize orchestrator service server
         rospy.Service('orchestrator', Orchestrator, self.orchestrator_service)
 
-    def launch_process(self, name):
+    def launch_process(self, name, nodes):
         # Configure output
         show_summary = False if self.quite else True
         force_log =  self.quite
@@ -76,10 +78,23 @@ class OrchestratorManager:
         # Initialize launcher
         launch = roslaunch.parent.ROSLaunchParent(self.uuid, [launch_file], force_log=force_log, show_summary=show_summary)
         launcher['ros_launch'] = launch
+        
+        rate = rospy.Rate(0.5) # 10hz
         # Run launch file
         launch.start()
         # spin launch
-        launch.spin()
+        while launch.pm.is_alive():
+            # Call the process monitor
+            pm = launch.pm
+            if pm is not None:
+                active_nodes = pm.get_active_names()
+                for idx, node in enumerate(active_nodes):
+                    nodes[idx].value = node
+            #rospy.loginfo("{}".format(", ".join(active_nodes)))
+            # ROS spin one
+            launch.spin_once()
+            rate.sleep()
+        #launch.spin()
         # Launcher close
         rospy.loginfo("Close {launch}".format(launch=launch_file))
         # shutdown the node
@@ -92,7 +107,12 @@ class OrchestratorManager:
             if launcher['process'].is_alive():
                 return False
         # Initialize process
-        launcher['process'] = Process(target=self.launch_process, args=(name,))
+        #manager = Manager()
+        # https://stackoverflow.com/questions/17377426/shared-variable-in-pythons-multiprocessing
+        #nodes = Array(ctypes.c_wchar_p, ('', '', ''))
+        nodes = [mpsc.RawArray(ctypes.c_char, 30) for _ in range(4)]
+        launcher['nodes'] = nodes
+        launcher['process'] = Process(target=self.launch_process, args=(name, nodes,))
         # Start process
         launcher['process'].start()
         #launcher['process'].join()
@@ -108,8 +128,16 @@ class OrchestratorManager:
         return True
 
     def _status_process(self, name):
-        if 'process' in self.launchers[name]:
-            rospy.loginfo("Status {name}".format(name=name))
+        launcher = self.launchers[name]
+        if 'process' in launcher:
+            #rospy.loginfo("Status {name}".format(name=name))
+            nodes = launcher['nodes']
+            nodes = [item.value for item in nodes]
+            rospy.loginfo("active nodes {nodes}".format(nodes=str(nodes)))
+            #for node in launcher['nodes']:
+            #    # nodes = [node.variable for node in launcher['nodes']]
+            #    if node is not None:
+            #        rospy.loginfo("active nodes {node}".format(node=node))
 
     def orchestrator_service(self, req):
         # Check if launcher is in list

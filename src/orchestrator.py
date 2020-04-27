@@ -41,11 +41,15 @@ def orchestrator():
     orchestrator = OrchestratorManager()
     # Status
     rospy.loginfo("ROS orchestrator started")
+    
+    # TEST RUN
+    orchestrator._start_process("001_talker_listener")
     # spin
-    # rospy.spin()
+    #rospy.spin()
+    
     rate = rospy.Rate(0.5) # 10hz
     while not rospy.is_shutdown():
-        rospy.loginfo("Time {time:.0f}".format(time=rospy.get_time()))
+        #rospy.loginfo("Time {time:.0f}".format(time=rospy.get_time()))
         orchestrator.status()
         rate.sleep()
     # Shoutdown node
