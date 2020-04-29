@@ -26,6 +26,13 @@
 # WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
 # OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
 # EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+"""
+Documentation:
+ - http://wiki.ros.org/roslaunch/API%20Usage
+ - http://docs.ros.org/melodic/api/roslaunch/html/
+ - http://wiki.ros.org/rosout#client_apis
+"""
+
 
 import sys
 import os
@@ -35,6 +42,15 @@ from multiprocessing import Process, Manager, Value, Array
 import ctypes
 import multiprocessing.sharedctypes as mpsc
 from ros_orchestrator.srv import Orchestrator, OrchestratorResponse
+
+
+class ProcessListener(roslaunch.pmon.ProcessListener):
+    """
+    https://answers.ros.org/question/277789/monitor-remote-nodes-with-roslaunch-api/
+    """
+
+    def process_died(self, name, exit_code):
+        rospy.logwarn("%s died with code %s", name, exit_code)
 
 
 class OrchestratorManager:
@@ -76,7 +92,7 @@ class OrchestratorManager:
         # print('process id:', os.getpid())
         rospy.loginfo("[{pid}] ROS launch={launch}".format(pid=os.getpid(), launch=launch_file))
         # Initialize launcher
-        launch = roslaunch.parent.ROSLaunchParent(self.uuid, [launch_file], force_log=force_log, show_summary=show_summary)
+        launch = roslaunch.parent.ROSLaunchParent(self.uuid, [launch_file], force_log=force_log, show_summary=show_summary, process_listeners=[ProcessListener()])
         launcher['ros_launch'] = launch
         
         rate = rospy.Rate(0.5) # 10hz
@@ -109,6 +125,7 @@ class OrchestratorManager:
         # Initialize process
         #manager = Manager()
         # https://stackoverflow.com/questions/17377426/shared-variable-in-pythons-multiprocessing
+        # https://stackoverflow.com/questions/48727798/shared-memory-array-of-strings-with-multiprocessing
         #nodes = Array(ctypes.c_wchar_p, ('', '', ''))
         nodes = [mpsc.RawArray(ctypes.c_char, 30) for _ in range(4)]
         launcher['nodes'] = nodes
