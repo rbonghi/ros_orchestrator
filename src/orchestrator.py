@@ -45,10 +45,6 @@ def orchestrator():
     orchestrator = OrchestratorManager(quite=quite, rate=fh_rate)
     # Status
     rospy.loginfo("ROS orchestrator started")
-    
-    # TEST RUN
-    orchestrator.startLauncher("001_talker_listener")
-
     # Loop ros status
     while not rospy.is_shutdown():
         # Update diagnostic from orchestrator
