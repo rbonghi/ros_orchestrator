@@ -131,7 +131,7 @@ class LauncherProcess(roslaunch.pmon.ProcessListener):
                 for idx, node in enumerate(active_nodes):
                     nodes[idx].value = node
             # Show status processes
-            rospy.loginfo("[{pid}] {process}".format(pid=os.getpid(), process=", ".join(active_nodes)))
+            # rospy.loginfo("[{pid}] {process}".format(pid=os.getpid(), process=", ".join(active_nodes)))
             # ROS spin one
             launch.spin_once()
             rate.sleep()
