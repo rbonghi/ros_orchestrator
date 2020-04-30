@@ -32,10 +32,12 @@ import roslaunch
 from diagnostic_msgs.msg import DiagnosticStatus, KeyValue
 # System
 import os
+import platform
 from multiprocessing import Process, Manager, Value, Array
 import ctypes
 import multiprocessing.sharedctypes as mpsc
 
+SIZE_NAME = 30
 
 class LauncherProcess(roslaunch.pmon.ProcessListener):
     """
@@ -53,6 +55,11 @@ class LauncherProcess(roslaunch.pmon.ProcessListener):
         self.process = None
         self.rate = rate
         rospy.loginfo("Load {name} {launch}".format(name=name, launch=self.launch_file))
+        # Load config
+        self.config = roslaunch.config.load_config_default([self.launch_file], None)
+        # Load name all nodes
+        for node in self.config.nodes:
+            rospy.logdebug("{} {} {}".format(node.package, node.type, node.name))
 
     def process_died(self, name, exit_code):
         rospy.logwarn("{name} died with code {exit_code}".format(name=name, exit_code=exit_code))
@@ -63,15 +70,16 @@ class LauncherProcess(roslaunch.pmon.ProcessListener):
             if self.process.is_alive():
                 return False
         # Initialize process
-        #manager = Manager()
         # https://stackoverflow.com/questions/17377426/shared-variable-in-pythons-multiprocessing
         # https://stackoverflow.com/questions/48727798/shared-memory-array-of-strings-with-multiprocessing
-        #nodes = Array(ctypes.c_wchar_p, ('', '', ''))
-        self.nodes = [mpsc.RawArray(ctypes.c_char, 30) for _ in range(4)]
+        # Number of nodes
+        n_nodes = len(self.config.nodes)
+        # Initialize shared data
+        self.nodes = [mpsc.RawArray(ctypes.c_char, SIZE_NAME) for _ in range(n_nodes)]
         self.process = Process(target=self.launch_process, args=(self.nodes,))
         # Start process
         self.process.start()
-        #launcher['process'].join()
+        # TODO check: launcher['process'].join()
         return True
 
     def stop(self):
@@ -84,17 +92,17 @@ class LauncherProcess(roslaunch.pmon.ProcessListener):
     def stats(self):
         values = []
         # launcher check
-        message = "inactive" if self.process is None else "running"
         if self.process is not None:
             for item in self.nodes:
                 if item.value:
                     status = "active"
                     # Log status nodes in diagnostic
                     values += [KeyValue(str(item.value) , status)]
+        message = "inactive" if self.process is None else "running [{pid}]".format(pid=self.process.pid)
         # Orchestrator diagnostic
         stats = DiagnosticStatus(name="orchestrator {name}".format(name=self.name),
                                  message=message,
-                                 hardware_id="hardware",
+                                 hardware_id=platform.system(),
                                  values=values)
         return stats
 
@@ -102,8 +110,6 @@ class LauncherProcess(roslaunch.pmon.ProcessListener):
         # Configure output
         show_summary = False if self.quite else True
         force_log =  self.quite
-        # print('parent process:', os.getppid())
-        # print('process id:', os.getpid())
         rospy.loginfo("[{pid}] ROS launch={launch}".format(pid=os.getpid(), launch=self.launch_file))
         # Initialize launcher
         launch = roslaunch.parent.ROSLaunchParent(self.uuid,
@@ -124,6 +130,7 @@ class LauncherProcess(roslaunch.pmon.ProcessListener):
                 # Update status active nodes
                 for idx, node in enumerate(active_nodes):
                     nodes[idx].value = node
+            # Show status processes
             rospy.loginfo("[{pid}] {process}".format(pid=os.getpid(), process=", ".join(active_nodes)))
             # ROS spin one
             launch.spin_once()
