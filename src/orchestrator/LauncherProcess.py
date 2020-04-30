@@ -92,13 +92,17 @@ class LauncherProcess(roslaunch.pmon.ProcessListener):
     def stats(self):
         values = []
         # launcher check
+        message = "inactive"
         if self.process is not None:
-            for item in self.nodes:
-                if item.value:
-                    status = "active"
-                    # Log status nodes in diagnostic
-                    values += [KeyValue(str(item.value) , status)]
-        message = "inactive" if self.process is None else "running [{pid}]".format(pid=self.process.pid)
+            if self.process.is_alive():
+                # Update message
+                message = "running [{pid}]".format(pid=self.process.pid)
+                # Update list nodes
+                for item in self.nodes:
+                    if item.value:
+                        status = "active"
+                        # Log status nodes in diagnostic
+                        values += [KeyValue(str(item.value) , status)]
         # Orchestrator diagnostic
         stats = DiagnosticStatus(name="orchestrator {name}".format(name=self.name),
                                  message=message,
