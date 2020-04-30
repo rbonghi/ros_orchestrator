@@ -37,18 +37,21 @@ from orchestrator import OrchestratorManager
 def orchestrator():
     # Initialization ros node
     rospy.init_node('orchestrator_node')
+    fh_rate = rospy.get_param("~rate", 0.5)
+    quite = rospy.get_param("~quite", False)
+    # Rate diagnostic updates
+    rate = rospy.Rate(fh_rate)
     # Initialize orchestrator
-    orchestrator = OrchestratorManager()
+    orchestrator = OrchestratorManager(quite=quite, rate=fh_rate)
     # Status
     rospy.loginfo("ROS orchestrator started")
     
     # TEST RUN
-    orchestrator._start_process("001_talker_listener")
-    # spin
-    #rospy.spin()
-    rate = rospy.Rate(0.5) # 10hz
+    orchestrator.startLauncher("001_talker_listener")
+
+    # Loop ros status
     while not rospy.is_shutdown():
-        #rospy.loginfo("Time {time:.0f}".format(time=rospy.get_time()))
+        # Update diagnostic from orchestrator
         orchestrator.status()
         rate.sleep()
     # Shoutdown node

@@ -36,6 +36,6 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                 003_listener_with_user_data: $(find rospy_tutorials)/003_listener_with_user_data/listener_with_user_data.launch
         </rosparam>
     </node>
-
-    <node pkg="rqt_runtime_monitor" type="rqt_runtime_monitor" name="rqt_runtime_monitor" />
+    <!-- runtime monitor example -->
+    <node pkg="rqt_runtime_monitor" type="rqt_runtime_monitor" name="rqt_runtime_monitor" required="true" />
 </launch>
