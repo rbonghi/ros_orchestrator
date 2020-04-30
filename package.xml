@@ -41,6 +41,7 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
   <build_depend>genmsg</build_depend>
 
+  <depend>diagnostic_msgs</depend>
   <depend>std_msgs</depend>
   <depend>rospy</depend>
   <depend>roslaunch</depend>

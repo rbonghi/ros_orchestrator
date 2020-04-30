@@ -39,6 +39,7 @@ import os
 import rospy
 import roslaunch
 from multiprocessing import Process, Manager, Value, Array
+from diagnostic_msgs.msg import DiagnosticArray, DiagnosticStatus, KeyValue
 import ctypes
 import multiprocessing.sharedctypes as mpsc
 from ros_orchestrator.srv import Orchestrator, OrchestratorResponse
@@ -50,7 +51,7 @@ class ProcessListener(roslaunch.pmon.ProcessListener):
     """
 
     def process_died(self, name, exit_code):
-        rospy.logwarn("%s died with code %s", name, exit_code)
+        rospy.logwarn("{name} died with code {exit_code}".format(name=name, exit_code=exit_code))
 
 
 class OrchestratorManager:
@@ -80,6 +81,8 @@ class OrchestratorManager:
             rospy.loginfo("Load {name} {launch}".format(name=name, launch=launcher['file']))
         # Initialize orchestrator service server
         rospy.Service('orchestrator', Orchestrator, self.orchestrator_service)
+        # Diagnostics publisher
+        self.diagnostics = rospy.Publisher('/diagnostics', DiagnosticArray, queue_size=1)
 
     def launch_process(self, name, nodes):
         # Configure output
@@ -92,9 +95,13 @@ class OrchestratorManager:
         # print('process id:', os.getpid())
         rospy.loginfo("[{pid}] ROS launch={launch}".format(pid=os.getpid(), launch=launch_file))
         # Initialize launcher
-        launch = roslaunch.parent.ROSLaunchParent(self.uuid, [launch_file], force_log=force_log, show_summary=show_summary, process_listeners=[ProcessListener()])
+        launch = roslaunch.parent.ROSLaunchParent(self.uuid,
+                                                  [launch_file], 
+                                                  force_log=force_log,
+                                                  show_summary=show_summary,
+                                                  process_listeners=[ProcessListener()])
         launcher['ros_launch'] = launch
-        
+        # Rate loop
         rate = rospy.Rate(0.5) # 10hz
         # Run launch file
         launch.start()
@@ -106,7 +113,7 @@ class OrchestratorManager:
                 active_nodes = pm.get_active_names()
                 for idx, node in enumerate(active_nodes):
                     nodes[idx].value = node
-            #rospy.loginfo("{}".format(", ".join(active_nodes)))
+            rospy.loginfo("{}".format(", ".join(active_nodes)))
             # ROS spin one
             launch.spin_once()
             rate.sleep()
@@ -144,17 +151,24 @@ class OrchestratorManager:
             launcher['process'].terminate()
         return True
 
-    def _status_process(self, name):
+    def _stats_process(self, name):
+        values = []
+        # launcher check
         launcher = self.launchers[name]
+        message = "inactive" if 'process' in launcher else "running"
         if 'process' in launcher:
-            #rospy.loginfo("Status {name}".format(name=name))
-            nodes = launcher['nodes']
-            nodes = [item.value for item in nodes]
-            rospy.loginfo("active nodes {nodes}".format(nodes=str(nodes)))
-            #for node in launcher['nodes']:
-            #    # nodes = [node.variable for node in launcher['nodes']]
-            #    if node is not None:
-            #        rospy.loginfo("active nodes {node}".format(node=node))
+            for item in launcher['nodes']:
+                if item.value:
+                    status = "active"
+                    # Log status nodes in diagnostic
+                    values += [KeyValue(str(item.value) , status)]
+                    # rospy.loginfo("name={node_name}".format(node_name=node_name))
+        # Orchestrator diagnostic
+        stats = DiagnosticStatus(name="orchestrator {name}".format(name=name),
+                                 message=message,
+                                 hardware_id="hardware",
+                                 values=values)
+        return stats
 
     def orchestrator_service(self, req):
         # Check if launcher is in list
@@ -181,7 +195,15 @@ class OrchestratorManager:
     def status(self):
         """ Read the status of all launchers
         """
+        # Define Diagnostic array message
+        # http://docs.ros.org/api/diagnostic_msgs/html/msg/DiagnosticStatus.html
+        arr = DiagnosticArray()
+        # Add timestamp
+        arr.header.stamp = rospy.Time.now()
         for name in self.launchers:
             # Stop process active
-            self._status_process(name)
+            stats = self._stats_process(name)
+            arr.status += [stats]
+        # Publish diagnostic message
+        self.diagnostics.publish(arr)
 # EOF
