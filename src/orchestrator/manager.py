@@ -58,44 +58,72 @@ class OrchestratorManager:
             # Initialize lauchers
             launch_file = ""
             args = []
+            depend = []
             if isinstance(launch_data, str):
                 launch_file = launch_data
             elif isinstance(launch_data, dict):
                 launch_file = launch_data.get('launch', "")
                 args = ["{key}:={value}".format(key=key, value=value) for key, value in launch_data.get('args', {}).items()]
+                depend = launch_data.get('depend', depend)
             else:
                 rospy.logerr("{name} Miss launch file information".format(name=name))
                 continue
             # Initialzie launcher
-            self.launchers[name] = LauncherProcess(uuid, launch_file, name, args=args, quite=quite, rate=rate)
+            self.launchers[name] = LauncherProcess(uuid, launch_file, name, args=args, depend=depend, quite=quite, rate=rate)
         # Initialize orchestrator service server
         rospy.Service('orchestrator', Orchestrator, self.orchestrator_service)
         # Run all launch file with start
         for name, launch_data in sorted(rospy.get_param("~orchestrator", []).items()):
             if isinstance(launch_data, dict):
                 if launch_data.get('start', False):
-                    process = self.launchers[name]
-                    process.start()
-
+                    self.startLauncher(name)
 
     def orchestrator_service(self, req):
         # Check if launcher is in list
         launch_status = False
-        if req.launch in self.launchers:
-            rospy.loginfo("[{status}] launch={launch}".format(launch=req.launch, status=req.status))
-            process = self.launchers[req.launch]
+        name = req.launch
+        if name in self.launchers:
+            rospy.loginfo("[{status}] launch={name}".format(anme=name, status=req.status))
             # Start or stop launch script
-            launch_status = process.start() if req.status else process.stop()
+            launch_status = self.startLauncher(name) if req.status else self.stopLauncher(name)
         else:
-            rospy.logerr("{launch} does not exist!".format(launch=req.launch))
+            rospy.logerr("{name} does not exist!".format(name=name))
         # return status launcher
         return OrchestratorResponse(launch_status)
 
     def startLauncher(self, name):
-        if name in self.launchers:
-            process = self.launchers[name]
-            # Stop process active
-            process.start()
+        if name not in self.launchers:
+            return
+        process = self.launchers[name]
+        # Check and run all dependencies
+        for depend in process.depend:
+            # Check if depend launch fils is in list
+            if depend in self.launchers:
+                dep_process = self.launchers[depend]
+                # Chek if is alive
+                if not dep_process.alive():
+                    rospy.loginfo("{name} depend {depend}".format(name=name, depend=depend))
+                    # Run process
+                    dep_process.start()
+        # Start process active
+        return process.start()
+
+    def stopLauncher(self, name):
+        if name not in self.launchers:
+            return
+        process = self.launchers[name]
+        # Check and run all dependencies
+        for depend in process.depend:
+            # Check if depend launch fils is in list
+            if depend in self.launchers:
+                dep_process = self.launchers[depend]
+                # Chek if is alive
+                if dep_process.alive():
+                    rospy.loginfo("{name} depend {depend}".format(name=name, depend=depend))
+                    # Stop process
+                    dep_process.stop()
+        # Stop process active
+        return process.stop()
 
     def shutdown(self):
         # Close all launcher active
@@ -103,7 +131,7 @@ class OrchestratorManager:
             process = self.launchers[name]
             # Stop process active
             process.stop()
-    
+
     def status(self):
         """ Read the status of all launchers
         """

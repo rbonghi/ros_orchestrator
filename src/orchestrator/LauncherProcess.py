@@ -46,7 +46,7 @@ class LauncherProcess(roslaunch.pmon.ProcessListener):
         Reference: https://answers.ros.org/question/277789/monitor-remote-nodes-with-roslaunch-api/
     """
 
-    def __init__(self, uuid, launch_file, name, args=[], quite=True, rate=0.5):
+    def __init__(self, uuid, launch_file, name, args=[], depend=[], quite=True, rate=0.5):
         self.uuid = uuid
         self.launch_file = launch_file
         self.name = name
@@ -54,6 +54,7 @@ class LauncherProcess(roslaunch.pmon.ProcessListener):
         self.quite = quite
         self.process = None
         self.rate = rate
+        self.depend = depend
         rospy.loginfo("Load {name} {launch} {args}".format(name=name, launch=self.launch_file, args=" ".join(self.args)))
         # Load config
         self.config = roslaunch.config.load_config_default([self.launch_file], None)
@@ -81,6 +82,12 @@ class LauncherProcess(roslaunch.pmon.ProcessListener):
         self.process.start()
         # TODO check: launcher['process'].join()
         return True
+
+    def alive(self):
+        # Terminate process if exist
+        if self.process is not None:
+            return self.process.is_alive()
+        return False
 
     def stop(self):
         # Terminate process if exist
