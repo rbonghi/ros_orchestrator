@@ -58,11 +58,9 @@ class OrchestratorManager:
             args = []
             if isinstance(launch_data, str):
                 launch_file = launch_data
-            elif isinstance(launch_data, list):
+            elif isinstance(launch_data, dict):
                 launch_file = launch_data.get('launch', "")
-                args = launch_data.get('args', [])
-                for arg in args:
-                    rospy.loginfo(arg)
+                args = ["{key}:={value}".format(key=key, value=value) for key, value in launch_data.get('args', {}).items()]
             else:
                 rospy.logerr("{name} Miss launch file information".format(name=name))
                 continue

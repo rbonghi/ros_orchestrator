@@ -54,7 +54,7 @@ class LauncherProcess(roslaunch.pmon.ProcessListener):
         self.quite = quite
         self.process = None
         self.rate = rate
-        rospy.loginfo("Load {name} {launch}".format(name=name, launch=self.launch_file))
+        rospy.loginfo("Load {name} {launch} {args}".format(name=name, launch=self.launch_file, args=" ".join(self.args)))
         # Load config
         self.config = roslaunch.config.load_config_default([self.launch_file], None)
         # Load name all nodes
@@ -114,10 +114,10 @@ class LauncherProcess(roslaunch.pmon.ProcessListener):
         # Configure output
         show_summary = False if self.quite else True
         force_log =  self.quite
-        rospy.loginfo("[{pid}] ROS launch={launch}".format(pid=os.getpid(), launch=self.launch_file))
+        rospy.loginfo("[{pid}] ROS launch={launch} {args}".format(pid=os.getpid(), launch=self.launch_file, args=self.args))
         # Initialize launcher
         launch = roslaunch.parent.ROSLaunchParent(self.uuid,
-                                                  [self.launch_file], 
+                                                  [(self.launch_file, self.args)], 
                                                   force_log=force_log,
                                                   show_summary=show_summary,
                                                   process_listeners=[self])
@@ -143,3 +143,4 @@ class LauncherProcess(roslaunch.pmon.ProcessListener):
         rospy.loginfo("Close {launch}".format(launch=self.launch_file))
         # shutdown the node
         launch.shutdown()
+# EOF
