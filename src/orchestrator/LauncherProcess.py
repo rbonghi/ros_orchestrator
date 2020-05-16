@@ -90,7 +90,7 @@ class LauncherProcess(roslaunch.pmon.ProcessListener):
         return True
 
     def stats(self):
-        values = []
+        values = [KeyValue("args" , " ".join(self.args))]
         # launcher check
         message = "inactive"
         if self.process is not None:
@@ -114,7 +114,7 @@ class LauncherProcess(roslaunch.pmon.ProcessListener):
         # Configure output
         show_summary = False if self.quite else True
         force_log =  self.quite
-        rospy.loginfo("[{pid}] ROS launch={launch} {args}".format(pid=os.getpid(), launch=self.launch_file, args=self.args))
+        rospy.loginfo("[{pid}] ROS launch={launch} {args}".format(pid=os.getpid(), launch=self.launch_file, args=" ".join(self.args)))
         # Initialize launcher
         launch = roslaunch.parent.ROSLaunchParent(self.uuid,
                                                   [(self.launch_file, self.args)], 

@@ -39,7 +39,8 @@ EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                         vel: 2.5
                         test: True
                     -->
-                    autostart: True
+                    <!-- Start instantaneusly this file -->
+                    start: True
                 <!-- Fast way to add in list a launch file -->
                 003_listener_with_user_data: $(find rospy_tutorials)/003_listener_with_user_data/listener_with_user_data.launch
         </rosparam>

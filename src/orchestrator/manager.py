@@ -50,6 +50,8 @@ class OrchestratorManager:
         # Generate UUID
         uuid = roslaunch.rlutil.get_or_generate_uuid(None, False)
         roslaunch.configure_logging(uuid)
+        # Diagnostics publisher
+        self.diagnostics = rospy.Publisher('/diagnostics', DiagnosticArray, queue_size=1)
         # Initialize all launchers
         self.launchers = {}
         for name, launch_data in sorted(rospy.get_param("~orchestrator", []).items()):
@@ -68,8 +70,13 @@ class OrchestratorManager:
             self.launchers[name] = LauncherProcess(uuid, launch_file, name, args=args, quite=quite, rate=rate)
         # Initialize orchestrator service server
         rospy.Service('orchestrator', Orchestrator, self.orchestrator_service)
-        # Diagnostics publisher
-        self.diagnostics = rospy.Publisher('/diagnostics', DiagnosticArray, queue_size=1)
+        # Run all launch file with start
+        for name, launch_data in sorted(rospy.get_param("~orchestrator", []).items()):
+            if isinstance(launch_data, dict):
+                if launch_data.get('start', False):
+                    process = self.launchers[name]
+                    process.start()
+
 
     def orchestrator_service(self, req):
         # Check if launcher is in list
