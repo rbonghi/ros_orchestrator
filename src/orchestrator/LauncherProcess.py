@@ -83,6 +83,11 @@ class LauncherProcess(roslaunch.pmon.ProcessListener):
         # TODO check: launcher['process'].join()
         return True
 
+    def __del__(self):
+        # Terminate process if exist
+        if self.process is not None:
+            self.process.join()
+
     def alive(self):
         # Terminate process if exist
         if self.process is not None:

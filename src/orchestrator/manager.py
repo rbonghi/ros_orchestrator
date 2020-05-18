@@ -83,7 +83,7 @@ class OrchestratorManager:
         launch_status = False
         name = req.launch
         if name in self.launchers:
-            rospy.loginfo("[{status}] launch={name}".format(anme=name, status=req.status))
+            rospy.loginfo("[{status}] launch={name}".format(name=name, status=req.status))
             # Start or stop launch script
             launch_status = self.startLauncher(name) if req.status else self.stopLauncher(name)
         else:
@@ -93,7 +93,7 @@ class OrchestratorManager:
 
     def startLauncher(self, name):
         if name not in self.launchers:
-            return
+            return False
         process = self.launchers[name]
         # Check and run all dependencies
         for depend in process.depend:
@@ -110,7 +110,7 @@ class OrchestratorManager:
 
     def stopLauncher(self, name):
         if name not in self.launchers:
-            return
+            return False
         process = self.launchers[name]
         # Check and run all dependencies
         for depend in process.depend:
